@@ -142,7 +142,42 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="contact in filteredContacts" :key="contact.email" class="hover:bg-gray-100">
+          <!-- Empty state message -->
+          <tr v-if="filteredContacts.length === 0">
+            <td colspan="6" class="px-6 py-12 text-center">
+              <div class="flex flex-col items-center justify-center space-y-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="w-12 h-12 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                  />
+                </svg>
+                <p class="text-xl font-medium text-gray-500">No contacts found</p>
+                <p class="text-sm text-gray-400">
+                  {{
+                    selectedRole || selectedSchool || searchQuery
+                      ? 'Try adjusting your filters or search query'
+                      : 'Add a contact to get started'
+                  }}
+                </p>
+              </div>
+            </td>
+          </tr>
+          <!-- Table rows for contacts -->
+          <tr
+            v-else
+            v-for="contact in paginatedContacts"
+            :key="contact.id"
+            class="hover:bg-gray-100"
+          >
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div
@@ -226,6 +261,58 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div class="px-6 py-4 bg-white border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="text-sm text-gray-500">
+            {{ filteredContacts.length === 0 ? 'No results' : 
+              `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredContacts.length)} of ${filteredContacts.length} results` 
+            }}
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="currentPage = Math.max(1, currentPage - 1)"
+              :disabled="currentPage === 1"
+              :class="[
+                'px-3 py-1 rounded-lg border',
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50',
+              ]"
+            >
+              Previous
+            </button>
+            <div class="flex items-center gap-1">
+              <button
+                v-for="page in totalPages"
+                :key="page"
+                @click="currentPage = page"
+                :class="[
+                  'px-3 py-1 rounded-lg border',
+                  currentPage === page
+                    ? 'bg-slate-600 text-white border-slate-600'
+                    : 'bg-white text-gray-700 hover:bg-gray-50',
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+            <button
+              @click="currentPage = Math.min(totalPages, currentPage + 1)"
+              :disabled="currentPage === totalPages"
+              :class="[
+                'px-3 py-1 rounded-lg border',
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50',
+              ]"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Modal -->
@@ -518,16 +605,34 @@ const searchQuery = ref('')
 const showFilterMenu = ref(false)
 const selectedRole = ref('')
 const selectedSchool = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 10
+
+// Default values for roles and schools
+const defaultRoles = [
+  '1st Year Student',
+  '2nd Year Student',
+  '3rd Year Student',
+  'Teacher',
+  'Principal',
+  'Medical Staff',
+  'Alumnus',
+  'Former Student',
+  'Special Grade Curse',
+  'Cursed Spirit',
+]
+
+const defaultSchools = ['Tokyo Jujutsu High', 'Kyoto Jujutsu High', '-']
 
 // สร้าง unique roles และ schools สำหรับ filter
 const uniqueRoles = computed(() => {
-  const roles = new Set(contacts.value.map((contact) => contact.role))
-  return Array.from(roles)
+  const roles = new Set([...defaultRoles, ...contacts.value.map((contact) => contact.role)])
+  return Array.from(roles).sort()
 })
 
 const uniqueSchools = computed(() => {
-  const schools = new Set(contacts.value.map((contact) => contact.school))
-  return Array.from(schools)
+  const schools = new Set([...defaultSchools, ...contacts.value.map((contact) => contact.school)])
+  return Array.from(schools).sort()
 })
 
 // กรองข้อมูลตาม search query และ filters
@@ -538,6 +643,14 @@ const filteredContacts = computed(() => {
     const matchesSchool = !selectedSchool.value || contact.school === selectedSchool.value
     return matchesSearch && matchesRole && matchesSchool
   })
+})
+
+const totalPages = computed(() => Math.ceil(filteredContacts.value.length / itemsPerPage))
+
+const paginatedContacts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredContacts.value.slice(start, end)
 })
 
 const editContact = (contact: Contact) => {
@@ -609,5 +722,6 @@ const clearFilters = () => {
   selectedRole.value = ''
   selectedSchool.value = ''
   searchQuery.value = ''
+  currentPage.value = 1
 }
 </script>
