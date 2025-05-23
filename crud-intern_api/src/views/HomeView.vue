@@ -1,12 +1,13 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">List of people</h1>
+      <h1 class="text-3xl font-bold">Jujutsu Database</h1>
       <div class="flex items-center gap-4">
         <div class="relative">
           <input
             type="text"
-            placeholder="Search..."
+            v-model="searchQuery"
+            placeholder="Search by name..."
             class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
           <svg
@@ -23,11 +24,83 @@
             ></path>
           </svg>
         </div>
+
+        <!-- Filter Button -->
+        <div class="relative">
+          <button
+            @click="showFilterMenu = !showFilterMenu"
+            class="flex items-center gap-2 bg-white border px-4 py-2 rounded-lg hover:bg-gray-50"
+          >
+            <svg
+              class="w-5 h-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            <span class="text-gray-700">Filter</span>
+            <span
+              v-if="selectedRole || selectedSchool"
+              class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full"
+            >
+              {{ (selectedRole ? 1 : 0) + (selectedSchool ? 1 : 0) }}
+            </span>
+          </button>
+
+          <!-- Filter Dropdown -->
+          <div
+            v-if="showFilterMenu"
+            class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border p-4 z-10"
+          >
+            <!-- Role Filter -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+              <select
+                v-model="selectedRole"
+                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">All Roles</option>
+                <option v-for="role in uniqueRoles" :key="role" :value="role">
+                  {{ role }}
+                </option>
+              </select>
+            </div>
+
+            <!-- School Filter -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">School</label>
+              <select
+                v-model="selectedSchool"
+                class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+              >
+                <option value="">All Schools</option>
+                <option v-for="school in uniqueSchools" :key="school" :value="school">
+                  {{ school }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Clear Filters -->
+            <button
+              @click="clearFilters"
+              class="w-full px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-700"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+
         <button
           class="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
           @click="openModal"
         >
-          <span class="font-semibold">+ Add Contact</span>
+          <span class="font-semibold">+ Add</span>
         </button>
       </div>
     </div>
@@ -69,7 +142,7 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="contact in contacts" :key="contact.email">
+          <tr v-for="contact in filteredContacts" :key="contact.email">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div
@@ -82,70 +155,38 @@
                 </div>
               </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <div class="flex items-center gap-2">
-                <span
-                  v-if="
-                    contact.role.toLowerCase().includes('teacher') ||
-                    contact.role.toLowerCase().includes('instructor')
-                  "
-                  class="text-blue-500 text-xl"
-                >
-                  👨‍🏫
-                </span>
-                <span
-                  v-else-if="contact.role.toLowerCase().includes('1st year')"
-                  class="text-green-500 text-xl"
-                >
-                  🌱
-                </span>
-                <span
-                  v-else-if="contact.role.toLowerCase().includes('2nd year')"
-                  class="text-yellow-500 text-xl"
-                >
-                  ⭐
-                </span>
-                <span
-                  v-else-if="contact.role.toLowerCase().includes('3rd year')"
-                  class="text-purple-500 text-xl"
-                >
-                  👑
-                </span>
-                <span 
-                  v-else-if="contact.role.toLowerCase().includes('curse')" 
-                  class="text-red-500 text-xl"
-                >
-                  👿
-                </span>
-                <span
-                  v-else-if="
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+              <span
+                :class="{
+                  'text-purple-800 font-semibold': contact.role.toLowerCase().includes('teacher'),
+                  'text-cyan-400 font-semibold': contact.role.toLowerCase().includes('1st year'),
+                  'text-blue-500 font-semibold': contact.role.toLowerCase().includes('2nd year'),
+                  'text-indigo-800 font-semibold': contact.role.toLowerCase().includes('3rd year'),
+                  'text-red-600 font-semibold': contact.role.toLowerCase().includes('curse'),
+                  'text-gray-500 font-semibold':
                     contact.role.toLowerCase().includes('alumnus') ||
-                    contact.role.toLowerCase().includes('former')
-                  "
-                  class="text-gray-500 text-xl"
-                >
-                  🎓
-                </span>
-                <span
-                  v-else-if="contact.role.toLowerCase().includes('medical')"
-                  class="text-emerald-500 text-xl"
-                >
-                  ⚕️
-                </span>
-                <span
-                  v-else-if="contact.role.toLowerCase().includes('principal')"
-                  class="text-amber-500 text-xl"
-                >
-                  🏫
-                </span>
-                <span>{{ contact.role }}</span>
-              </div>
+                    contact.role.toLowerCase().includes('former'),
+                  'text-emerald-600 font-semibold': contact.role.toLowerCase().includes('medical'),
+                  'text-amber-600 font-semibold': contact.role.toLowerCase().includes('principal'),
+                  'text-gray-300': !contact.role
+                    .toLowerCase()
+                    .match(
+                      /(teacher|instructor|1st year|2nd year|3rd year|curse|alumnus|former|medical|principal)/,
+                    ),
+                }"
+              >
+                {{ contact.role }}
+              </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ contact.email }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {{ contact.school }}
+              <div class="flex items-center gap-2">
+                <span v-if="contact.school.includes('Kyoto')" class="text-lg">🎌</span>
+                <span v-else-if="contact.school.includes('Tokyo')" class="text-lg">⛩</span>
+                {{ contact.school }}
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ contact.createdDate }}
@@ -235,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 interface Contact {
   name: string
@@ -278,7 +319,7 @@ const contacts = ref<Contact[]>([
     name: 'Ryomen Sukuna',
     role: 'Special Grade Curse',
     email: 'ryomen_sukuna@curse.realm',
-    school: 'None (Resides in Yuji)',
+    school: '-',
     createdDate: '2023-03-03',
   },
   {
@@ -313,7 +354,7 @@ const contacts = ref<Contact[]>([
     name: 'Suguru Geto',
     role: 'Former Student',
     email: 'suguru_geto@ex.jujutsu.tokyo.ac.jp',
-    school: 'Former Tokyo Jujutsu High',
+    school: 'Tokyo Jujutsu High',
     createdDate: '2021-12-12',
   },
   {
@@ -353,35 +394,35 @@ const contacts = ref<Contact[]>([
   },
   {
     name: 'Kinji Hakari',
-    role: '3rd Year Student (Suspended)',
+    role: '3rd Year Student',
     email: 'kinji_hakari@jujutsu.tokyo.ac.jp',
     school: 'Tokyo Jujutsu High',
     createdDate: '2023-02-03',
   },
   {
     name: 'Yuta Okkotsu',
-    role: '2nd Year Student (Returnee)',
+    role: '2nd Year Student',
     email: 'yuta_okkotsu@jujutsu.tokyo.ac.jp',
     school: 'Tokyo Jujutsu High',
     createdDate: '2023-02-10',
   },
   {
     name: 'Rika Orimoto',
-    role: 'Cursed Spirit (Former Human)',
+    role: 'Cursed Spirit',
     email: 'rika_orimoto@curse.realm',
-    school: 'N/A',
+    school: '-',
     createdDate: '2022-09-09',
   },
   {
     name: 'Utahime Iori',
-    role: 'Instructor',
+    role: 'Teacher',
     email: 'utahime_iori@jujutsu.kyoto.ac.jp',
     school: 'Kyoto Jujutsu High',
     createdDate: '2022-06-30',
   },
   {
     name: 'Masamichi Yaga',
-    role: 'Principal (Deceased)',
+    role: 'Principal',
     email: 'masamichi_yaga@jujutsu.tokyo.ac.jp',
     school: 'Tokyo Jujutsu High',
     createdDate: '2022-03-15',
@@ -399,6 +440,32 @@ const newContact = ref<Contact>({
     month: 'short',
     year: 'numeric',
   }),
+})
+
+const searchQuery = ref('')
+const showFilterMenu = ref(false)
+const selectedRole = ref('')
+const selectedSchool = ref('')
+
+// สร้าง unique roles และ schools สำหรับ filter
+const uniqueRoles = computed(() => {
+  const roles = new Set(contacts.value.map((contact) => contact.role))
+  return Array.from(roles)
+})
+
+const uniqueSchools = computed(() => {
+  const schools = new Set(contacts.value.map((contact) => contact.school))
+  return Array.from(schools)
+})
+
+// กรองข้อมูลตาม search query และ filters
+const filteredContacts = computed(() => {
+  return contacts.value.filter((contact) => {
+    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchesRole = !selectedRole.value || contact.role === selectedRole.value
+    const matchesSchool = !selectedSchool.value || contact.school === selectedSchool.value
+    return matchesSearch && matchesRole && matchesSchool
+  })
 })
 
 const openModal = () => {
@@ -424,5 +491,11 @@ const closeModal = () => {
 const addContact = () => {
   contacts.value.push({ ...newContact.value })
   closeModal()
+}
+
+const clearFilters = () => {
+  selectedRole.value = ''
+  selectedSchool.value = ''
+  searchQuery.value = ''
 }
 </script>
