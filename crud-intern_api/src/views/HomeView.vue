@@ -142,7 +142,7 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="contact in filteredContacts" :key="contact.email">
+          <tr v-for="contact in filteredContacts" :key="contact.email" class="hover:bg-gray-100">
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex items-center">
                 <div
@@ -228,12 +228,16 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <input
-                type="text"
+              <select
                 v-model="newContact.role"
                 required
                 class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
-              />
+              >
+                <option value="">Select Role</option>
+                <option v-for="role in uniqueRoles" :key="role" :value="role">
+                  {{ role }}
+                </option>
+              </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -245,13 +249,17 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-              <input
-                type="text"
+              <label class="block text-sm font-medium text-gray-700 mb-1">School</label>
+              <select
                 v-model="newContact.school"
                 required
                 class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
-              />
+              >
+                <option value="">Select School</option>
+                <option v-for="school in uniqueSchools" :key="school" :value="school">
+                  {{ school }}
+                </option>
+              </select>
             </div>
           </div>
           <div class="mt-6 flex justify-end gap-3">
