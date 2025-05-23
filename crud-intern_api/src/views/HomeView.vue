@@ -191,17 +191,37 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {{ contact.createdDate }}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button class="text-gray-400 hover:text-gray-600">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                  ></path>
-                </svg>
-              </button>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  @click="editContact(contact)"
+                  class="flex items-center gap-1 bg-slate-600 border text-white px-3 py-2 rounded-lg hover:bg-slate-800"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    ></path>
+                  </svg>
+                  <span>Edit</span>
+                </button>
+                <button
+                  @click="deleteContact(contact)"
+                  class="flex items-center gap-1 bg-red-600 border text-white px-3 py-2 rounded-lg hover:bg-red-800"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    ></path>
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -214,7 +234,7 @@
       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center"
     >
       <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <h2 class="text-xl font-bold mb-6">Add New Contact</h2>
+        <h2 class="text-xl font-bold mb-6">{{ isEditing ? 'Edit member' : 'Add new member' }}</h2>
         <form @submit.prevent="addContact">
           <div class="space-y-4">
             <div>
@@ -274,10 +294,49 @@
               type="submit"
               class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-800"
             >
-              Add Contact
+              {{ isEditing ? 'Update' : 'Add' }}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div
+      v-if="showDeleteModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center"
+    >
+      <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
+        <div class="flex justify-center mb-6">
+          <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              ></path>
+            </svg>
+          </div>
+        </div>
+        <h2 class="text-xl font-bold mb-4">Delete member</h2>
+        <p class="text-gray-600 mb-6">
+          Are you sure you want to delete this member? This action cannot be undone.
+        </p>
+        <div class="flex justify-center gap-3">
+          <button
+            @click="cancelDelete"
+            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            @click="confirmDelete"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -438,6 +497,11 @@ const contacts = ref<Contact[]>([
 ])
 
 const showModal = ref(false)
+const showDeleteModal = ref(false)
+const isEditing = ref(false)
+const editingContact = ref<Contact | null>(null)
+const contactToDelete = ref<Contact | null>(null)
+
 const newContact = ref<Contact>({
   name: '',
   role: '',
@@ -476,12 +540,45 @@ const filteredContacts = computed(() => {
   })
 })
 
+const editContact = (contact: Contact) => {
+  editingContact.value = { ...contact }
+  isEditing.value = true
+  showModal.value = true
+  // Set form data for editing
+  newContact.value = { ...contact }
+}
+
+const deleteContact = (contact: Contact) => {
+  contactToDelete.value = contact
+  showDeleteModal.value = true
+}
+
+const confirmDelete = () => {
+  if (contactToDelete.value) {
+    const index = contacts.value.findIndex((c) => c.email === contactToDelete.value?.email)
+    if (index !== -1) {
+      contacts.value.splice(index, 1)
+    }
+    showDeleteModal.value = false
+    contactToDelete.value = null
+  }
+}
+
+const cancelDelete = () => {
+  showDeleteModal.value = false
+  contactToDelete.value = null
+}
+
 const openModal = () => {
+  isEditing.value = false
+  editingContact.value = null
   showModal.value = true
 }
 
 const closeModal = () => {
   showModal.value = false
+  isEditing.value = false
+  editingContact.value = null
   // Reset form
   newContact.value = {
     name: '',
@@ -497,7 +594,14 @@ const closeModal = () => {
 }
 
 const addContact = () => {
-  contacts.value.push({ ...newContact.value })
+  if (isEditing.value && editingContact.value) {
+    const index = contacts.value.findIndex((c) => c.email === editingContact.value?.email)
+    if (index !== -1) {
+      contacts.value[index] = { ...newContact.value }
+    }
+  } else {
+    contacts.value.push({ ...newContact.value })
+  }
   closeModal()
 }
 
