@@ -266,8 +266,10 @@
       <div class="px-6 py-4 bg-white border-t border-gray-200">
         <div class="flex items-center justify-between">
           <div class="text-sm text-gray-500">
-            {{ filteredContacts.length === 0 ? 'No results' : 
-              `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredContacts.length)} of ${filteredContacts.length} results` 
+            {{
+              filteredContacts.length === 0
+                ? 'No results'
+                : `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredContacts.length)} of ${filteredContacts.length} results`
             }}
           </div>
           <div class="flex items-center space-x-2">
@@ -645,7 +647,9 @@ const filteredContacts = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.ceil(filteredContacts.value.length / itemsPerPage))
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredContacts.value.length / itemsPerPage)),
+)
 
 const paginatedContacts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
