@@ -175,7 +175,7 @@
           <tr
             v-else
             v-for="contact in paginatedContacts"
-            :key="contact.id"
+            :key="contact.email"
             class="hover:bg-gray-100"
           >
             <td class="px-6 py-4 whitespace-nowrap">
