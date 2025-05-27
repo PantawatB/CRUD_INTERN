@@ -463,11 +463,27 @@ const openModal = () => {
 
 const closeModal = () => {
   showModal.value = false
-  //ปิด form และ ล้
+  //ปิด form และ ล้างค่า
   formData.value = {
     title: '',
     content: '',
     blog_img: new File([], ''),
   }
+}
+const handleSubmit = async () => {
+  // handlesubmit จาก form "+ Add"
+  try {
+    const data = new FormData()
+    //สร้าง new form data ยัดข้อมูลเข้าไป
+    data.append('title', formData.value.title)
+    data.append('content', formData.value.content)
+
+    await blogService.create(data) //รอ create
+    closeModal() // ปิดหน้าต่าง
+    await fetchBlogs() // Refresh the list
+  } catch (error) {
+    console.error('Error creating blog:', error)
+  }
+  ///////////////////////////////////////////////////////////////////////////////////////////////
 }
 </script>
