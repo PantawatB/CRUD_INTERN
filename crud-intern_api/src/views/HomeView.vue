@@ -10,6 +10,7 @@
           <input
             type="text"
             v-model="queryParams.q"
+            @keyup.enter="handleSearch"
             placeholder="Search id..."
             class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
@@ -29,6 +30,7 @@
         </div>
         <div class="relative">
           <button
+            @click="handleSearch"
             class="flex items-center gap-2 bg-slate-600 text-white border px-5 py-5 rounded-lg hover:bg-slate-800"
           >
             <svg
@@ -68,12 +70,6 @@
               />
             </svg>
             <span class="text-gray-700">Filter & Sort</span>
-            <!-- <span
-              v-if="hasActiveFilters"
-              class="bg-slate-500 text-white text-xs px-2 py-1 rounded-full"
-            >
-              {{ activeFiltersCount }}
-            </span> -->
           </button>
 
           <!-- Filter Dropdown -->
@@ -147,6 +143,12 @@
             </button>
           </div>
         </div>
+        <button
+          class="flex items-center gap-2 bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-800"
+          @click="openModal"
+        >
+          <span class="font-semibold">+ Add</span>
+        </button>
       </div>
     </div>
 
@@ -209,7 +211,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { blogService } from '@/services/web.service'
-import type { BlogList } from '@/models/web.model'
+import type { BlogList, Blog } from '@/models/web.model'
 
 const dataList = ref<BlogList>({
   totalItems: 0,
@@ -265,7 +267,39 @@ const fetchBlogs = async () => {
   }
 }
 
-// Computed property for sorted
+// เอาไว้ handle searching by id
+const handleSearch = async () => {
+  try {
+    if (queryParams.value.q && !isNaN(Number(queryParams.value.q))) {
+      // ทีค่าและค่าต้องเป็นตัวเลข และ ไม่ใช่ is Not a Number คือต้องเป็นตัวเลข ตัวว่างยังถือว่าเป็น 0
+      const response = await blogService.getbyid(Number(queryParams.value.q))
+      if (response.data) {
+        // ถ้ามี data ให้แสดงข้อมูล ไอเทมอันเดียว หน้าเดียว และ โชว์ข้อมูลนั้น
+        dataList.value = {
+          totalItems: 1,
+          rows: [response.data],
+          totalPages: 1,
+          currentPage: 1,
+        }
+      }
+    } else {
+      // กดเฉยๆแบบไม่มีข้อมูลก็ get all มาก่อน
+      await fetchBlogs()
+    }
+  } catch (error) {
+    console.error('Error searching blogs:', error)
+    //โชว์ error ที่เกิดขึ้น
+    dataList.value = {
+      totalItems: 0,
+      rows: [],
+      totalPages: 0,
+      currentPage: 0,
+    }
+    //ไม่ก็ทำเป็นข้อมูลว่าง
+  }
+}
+
+// Computed property for sorted data
 const sortedData = computed(() => {
   let result = [...dataList.value.rows]
   // copy dataList.value.rows ไปไว้ใน result เพื่อให้การเปลี่ยนค่าจากการ sort ไม่กระทบข้อมูลเดิม

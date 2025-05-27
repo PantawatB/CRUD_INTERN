@@ -15,7 +15,7 @@ export const blogService = {
   //   const response = await axios.get(`${API_URL}/blogs/${id}`)
   //   return response.data
   // },
-  getbyid: (id: number) => axios.get<BlogList>(`${API_URL}/blogs/${id}`),
+  getbyid: (id: number) => axios.get<Blog>(`${API_URL}/blogs/${id}`),
 
   // Create
   // async createBlog(data: FormData) {
