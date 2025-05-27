@@ -183,6 +183,11 @@
             >
               Updated At
             </th>
+            <th
+              class="px-6 py-3 text-middle text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Actions
+            </th>
           </tr>
         </thead>
         <!-- body ตาราง -->
@@ -201,6 +206,40 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               {{ new Date(blog.updatedAt).toLocaleString() }}
             </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div class="flex items-center justify-end gap-2">
+                <!-- Edit ↓↓↓ -->
+                <button
+                  @click="editBlog(blog)"
+                  class="flex items-center gap-1 bg-slate-600 border text-white px-3 py-2 rounded-lg hover:bg-slate-800"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    ></path>
+                  </svg>
+                  <span>Edit</span>
+                </button>
+                <!-- Edit ^^^^ -->
+                <button
+                  @click="deleteBlog(blog)"
+                  class="flex items-center gap-1 bg-red-600 border text-white px-3 py-2 rounded-lg hover:bg-red-800"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    ></path>
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -213,7 +252,10 @@
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center"
   >
     <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-      <h2 class="text-xl font-bold mb-6">Add new blog post</h2>
+      <!-- ดูว่าถูกเรียกใช้ในโหมดไหน Edit หรือ Create -->
+      <h2 class="text-xl font-bold mb-6">
+        {{ isEditing ? 'Edit blog post' : 'Add new blog post' }}
+      </h2>
       <form @submit.prevent="handleSubmit">
         <div class="space-y-4">
           <div>
@@ -251,8 +293,9 @@
             type="submit"
             class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-800"
           >
-            Create
+            {{ isEditing ? 'Update' : 'Create' }}
           </button>
+          <!-- ดูว่าถูกเรียกใช้ในโหมดไหน Edit หรือ Create -->
         </div>
       </form>
     </div>
@@ -275,9 +318,9 @@
           </svg>
         </div>
       </div>
-      <h2 class="text-xl font-bold mb-4">Delete member</h2>
+      <h2 class="text-xl font-bold mb-4">Delete blog post</h2>
       <p class="text-gray-600 mb-6">
-        Are you sure you want to delete this member? This action cannot be undone.
+        Are you sure you want to delete this blog post? This action cannot be undone.
       </p>
       <div class="flex justify-center gap-3">
         <button
@@ -445,16 +488,34 @@ onMounted(() => {
 })
 //////////////////////////////////////////////////////////////////////////////////////////////
 const showModal = ref(false)
+const showDeleteModal = ref(false)
+const blogToDelete = ref<Blog | null>(null)
+const blogToEdit = ref<Blog | null>(null)
+const isEditing = ref(false)
 const formData = ref<BlogForm>({
   title: '',
   content: '',
   blog_img: new File([], ''),
 }) //ค่าเริ่มต้น
 
+const editBlog = (blog: Blog) => {
+  isEditing.value = true
+  blogToEdit.value = blog
+  formData.value = {
+    title: blog.title,
+    content: blog.content,
+    blog_img: new File([], ''),
+  }
+  showModal.value = true
+}
+
 const openModal = () => {
+  isEditing.value = false
+  blogToEdit.value = null
   showModal.value = true
   //เปิด form และไม่มีค่า
   formData.value = {
+    //formData คือ Blogform
     title: '',
     content: '',
     blog_img: new File([], ''),
@@ -462,12 +523,14 @@ const openModal = () => {
 }
 
 const closeModal = () => {
-  showModal.value = false
-  //ปิด form และ ล้างค่า
+  //ล้างค่าต่างๆในเรียบร้อย
+  showModal.value = false //ปิดหน้าต่าง
+  isEditing.value = false //ไม่ได้อยู่ในโหมด edit แล้ว
+  blogToEdit.value = null //
   formData.value = {
     title: '',
     content: '',
-    blog_img: new File([], ''),
+    blog_img: null,
   }
 }
 const handleSubmit = async () => {
@@ -477,13 +540,45 @@ const handleSubmit = async () => {
     //สร้าง new form data ยัดข้อมูลเข้าไป
     data.append('title', formData.value.title)
     data.append('content', formData.value.content)
+    data.append('blog_img', formData.value.blog_img)
 
-    await blogService.create(data) //รอ create
+    /////////////////////เลือกว่าจะยิงไปที่ไหน//////////////////////////////////////////////////////////////////
+    if (isEditing.value && blogToEdit.value) {
+      //กำลัง edit และมีข้อมูลที่ edit ให้ส่งไปตามนี้
+      await blogService.update(blogToEdit.value.id, data)
+    } else {
+      //ถ้าไม่ใช้ก็เป็นโหมด create
+      await blogService.create(data)
+    }
+    //////////////////เลือกว่าจะยิงไปที่ไหน///////////////////////////////////////////////////////////
+
     closeModal() // ปิดหน้าต่าง
     await fetchBlogs() // Refresh the list
   } catch (error) {
-    console.error('Error creating blog:', error)
+    console.error('Error blog:', error)
   }
-  ///////////////////////////////////////////////////////////////////////////////////////////////
+}
+
+const deleteBlog = (blog: Blog) => {
+  blogToDelete.value = blog
+  showDeleteModal.value = true
+}
+
+const cancelDelete = () => {
+  showDeleteModal.value = false
+  blogToDelete.value = null
+}
+
+const confirmDelete = async () => {
+  if (!blogToDelete.value) return
+
+  try {
+    await blogService.delete(blogToDelete.value.id)
+    showDeleteModal.value = false
+    blogToDelete.value = null
+    await fetchBlogs() // Refresh the list
+  } catch (error) {
+    console.error('Error deleting blog:', error)
+  }
 }
 </script>

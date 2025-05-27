@@ -1,7 +1,7 @@
 export interface BlogForm {
   title: string
   content: string
-  blog_img: File
+  blog_img: File | null
 }
 
 export interface Blog {
