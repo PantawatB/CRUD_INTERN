@@ -244,6 +244,27 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
               <div class="flex items-center justify-end gap-2">
+                <!-- View Button ↓↓↓ เอามาแทรกอยู่ก่อน edit -->
+                <button
+                  @click="viewBlogDetails(blog)"
+                  class="flex items-center gap-1 bg-gray-100 border text-black px-3 py-2 rounded-lg hover:bg-gray-300"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                </button>
+                <!-- View Button ^^^^ -->
                 <!-- Edit ↓↓↓ -->
                 <button
                   @click="editBlog(blog)"
@@ -390,6 +411,92 @@
       </div>
     </div>
   </div>
+
+  <!-- View Modal Popup -->
+  <div
+    v-if="showViewModal"
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center"
+  >
+    <div class="relative bg-white rounded-lg shadow-xl p-8 w-full max-w-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold">Blog Details</h2>
+        <!-- ปุ่ม X -->
+        <button @click="closeViewModal" class="text-gray-500 hover:text-gray-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div v-if="selectedBlog" class="space-y-6">
+        <!-- Profile Image -->
+        <div class="flex justify-center">
+          <div v-if="selectedBlog.Img?.url" class="w-32 h-32 relative">
+            <img
+              :src="`https://exam-api.dev.mis.cmu.ac.th${selectedBlog.Img.url}`"
+              :alt="selectedBlog.title"
+              class="w-full h-full object-cover rounded-lg shadow-md"
+            />
+          </div>
+          <div v-else class="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+            <svg
+              class="w-16 h-16 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Blog Details -->
+        <div class="grid gap-4">
+          <div>
+            <p class="font-medium text-gray-600">ID</p>
+            <p class="text-gray-900">{{ selectedBlog.id }}</p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-600">Hit Count</p>
+            <p class="text-gray-900">{{ selectedBlog.hit }}</p>
+          </div>
+          <div class="col-span-2">
+            <!-- เผื่อ Title ยาว -->
+            <p class="font-medium text-gray-600">Title</p>
+            <p class="text-gray-900">{{ selectedBlog.title }}</p>
+          </div>
+          <div class="col-span-2">
+            <!-- เผื่อ Content ยาว -->
+            <p class="font-medium text-gray-600">Content</p>
+            <p class="text-gray-900 whitespace-pre-wrap">{{ selectedBlog.content }}</p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-600">Created At</p>
+            <p class="text-gray-900">
+              {{ new Date(selectedBlog.createdAt).toLocaleString() }}
+            </p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-600">Updated At</p>
+            <p class="text-gray-900">
+              {{ new Date(selectedBlog.updatedAt).toLocaleString() }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- View Modal Popup -->
   <!-- //////////////////////////////////////////////////////////////////////////////////////////////// -->
 </template>
 
@@ -541,8 +648,10 @@ onMounted(() => {
 //////////////////////////////////////////////////////////////////////////////////////////////
 const showModal = ref(false)
 const showDeleteModal = ref(false)
+const showViewModal = ref(false) // track สถานะการเปิดปิดของ ตอนเรียกตา
 const blogToDelete = ref<Blog | null>(null)
 const blogToEdit = ref<Blog | null>(null)
+const selectedBlog = ref<Blog | null>(null) // ค่าที่เลือกมาจากตอนกดตา
 const isEditing = ref(false)
 const formData = ref<BlogForm>({
   title: '',
@@ -645,5 +754,22 @@ const confirmDelete = async () => {
   } catch (error) {
     console.error('Error deleting blog:', error)
   }
+}
+
+const viewBlogDetails = async (blog: Blog) => {
+  try {
+    // เรียก API เพื่อดึงข้อมูลล่าสุดของ blog นั้น
+    const response = await blogService.getbyid(blog.id)
+    selectedBlog.value = response.data
+    showViewModal.value = true
+  } catch (error) {
+    console.error('Error fetching blog details:', error)
+  }
+}
+
+const closeViewModal = () => {
+  // ปิดและล้างค่า
+  showViewModal.value = false
+  selectedBlog.value = null
 }
 </script>
