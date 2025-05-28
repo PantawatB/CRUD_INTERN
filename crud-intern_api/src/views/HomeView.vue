@@ -279,6 +279,22 @@
               placeholder="Enter content"
             ></textarea>
           </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Image</label>
+            <!-- input type file เป็น ตัวทริกเกอร์อีเว้นท์ -->
+            <!-- accept="image/*" รับเฉพาะไฟล์รูปภาพเท่านั้น -->
+            <input
+              type="file"
+              @change="handleImageUpload"
+              accept="image/*"
+              class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+            />
+            <!-- แสดง <p> นี้ ก็ต่อเมื่อ มีไฟล์อยู่ใน formData.blog_img -->
+            <p v-if="formData.blog_img" class="mt-1 text-sm text-gray-500">
+              Selected file: {{ formData.blog_img.name }}
+            </p>
+          </div>
         </div>
 
         <div class="mt-6 flex justify-end gap-3">
@@ -495,10 +511,21 @@ const isEditing = ref(false)
 const formData = ref<BlogForm>({
   title: '',
   content: '',
-  blog_img: new File([], ''),
-}) //ค่าเริ่มต้น
+  blog_img: null, // แก้ไขให้เริ่มเป็น null
+})
+
+const handleImageUpload = (event: Event) => {
+  //ใส่ค่าใน formdata ส่วนรูปภาพ
+  const input = event.target as HTMLInputElement //ทำให้เป็นประเภท HTMLInputElement เข้าถึง .value .files
+  if (input.files && input.files.length > 0) {
+    //'input.files' is possibly 'null'
+    // เช็กว่า input.files มีค่า และมีไฟล์มากกว่า 0 รายการ
+    formData.value.blog_img = input.files[0] // formData (BlogForm) ได้ข้อมูลมาแล้ว
+  }
+}
 
 const editBlog = (blog: Blog) => {
+  // ตอนกดปุ่ม Edit จะเรียกฟังก์ชั่นนี้ก่อน
   isEditing.value = true
   blogToEdit.value = blog
   formData.value = {
@@ -506,7 +533,7 @@ const editBlog = (blog: Blog) => {
     content: blog.content,
     blog_img: new File([], ''),
   }
-  showModal.value = true
+  showModal.value = true // โชว์หน้าต่างขึ้นมา
 }
 
 const openModal = () => {
@@ -540,7 +567,10 @@ const handleSubmit = async () => {
     //สร้าง new form data ยัดข้อมูลเข้าไป
     data.append('title', formData.value.title)
     data.append('content', formData.value.content)
-    data.append('blog_img', formData.value.blog_img)
+    if (formData.value.blog_img) {
+      // ป้องกันไม่ให้แนบ null หรือ undefined เข้าไปใน FormData
+      data.append('blog_img', formData.value.blog_img) // โดยปกติแล้ว default จะเป็น null อยู่แล้ว
+    }
 
     /////////////////////เลือกว่าจะยิงไปที่ไหน//////////////////////////////////////////////////////////////////
     if (isEditing.value && blogToEdit.value) {
@@ -551,7 +581,6 @@ const handleSubmit = async () => {
       await blogService.create(data)
     }
     //////////////////เลือกว่าจะยิงไปที่ไหน///////////////////////////////////////////////////////////
-
     closeModal() // ปิดหน้าต่าง
     await fetchBlogs() // Refresh the list
   } catch (error) {
