@@ -198,7 +198,35 @@
         <!-- สร้างตัวแปร blog มาดูดข้อมูลที่ได้มาจากการดึง api ที่อยู่ใน  -->
         <!-- ที่ต้องวน loop ใน sortedData เพราะจะต้องมีการอัพเดท Data ทุกครั้งที่มีการ sort หรือ filter -->
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr v-for="blog in sortedData" :key="blog.id" class="hover:bg-gray-50">
+          <tr v-if="paginatedBlogs.length === 0">
+            <td colspan="7" class="px-6 py-12 text-center">
+              <div class="flex flex-col items-center justify-center space-y-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="w-12 h-12 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                  />
+                </svg>
+                <p class="text-xl font-medium text-gray-500">No blogs found</p>
+                <p class="text-sm text-gray-400">
+                  {{
+                    hasActiveFilters
+                      ? 'Try adjusting your filters or search query'
+                      : 'Add a blog post to get started'
+                  }}
+                </p>
+              </div>
+            </td>
+          </tr>
+          <tr v-else v-for="blog in paginatedBlogs" :key="blog.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ blog.id }}</td>
             <!-- Profile ↓↓↓ -->
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -299,8 +327,68 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div class="px-6 py-4 bg-white border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <!-- ไม่แสดงผลเมื่อไม่มีข้อมูล -->
+          <div class="text-sm text-gray-500">
+            {{
+              paginatedBlogs.length === 0
+                ? 'No results'
+                : `Showing ${(dataList.currentPage - 1) * itemsPerPage + 1}-${Math.min(
+                    dataList.currentPage * itemsPerPage,
+                    dataList.totalItems,
+                  )} of ${dataList.totalItems} results`
+            }}
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="goToPage(Math.max(1, currentPage - 1))"
+              :disabled="currentPage === 1"
+              :class="[
+                'px-3 py-1 rounded-lg border',
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50',
+              ]"
+            >
+              Previous
+            </button>
+            <div class="flex items-center gap-1">
+              <!-- ปุ่มกลาง -->
+              <button
+                v-for="page in totalPages"
+                :key="page"
+                @click="goToPage(page)"
+                :class="[
+                  'px-3 py-1 rounded-lg border',
+                  currentPage === page
+                    ? 'bg-slate-600 text-white border-slate-600'
+                    : 'bg-white text-gray-700 hover:bg-gray-50',
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+            <button
+              @click="goToPage(Math.min(totalPages, currentPage + 1))"
+              :disabled="currentPage === totalPages"
+              :class="[
+                'px-3 py-1 rounded-lg border',
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50',
+              ]"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
   <!-- /////////////////////////////////////////////////////////////////////////////////////////////////// -->
   <!-- Create/Edit Modal Popup -->
   <div
@@ -500,9 +588,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { blogService } from '@/services/web.service'
 import type { BlogList, Blog, BlogForm } from '@/models/web.model'
+
+const currentPage = ref(1) // หน้าปัจจุบันเริ่มที่ 1
+const itemsPerPage = 10 // จำนวนรายการต่อหน้า = 10
 
 const dataList = ref<BlogList>({
   totalItems: 0,
@@ -513,7 +604,7 @@ const dataList = ref<BlogList>({
 
 const queryParams = ref({
   page: 1,
-  size: 1,
+  size: 10,
   q: '',
   show: 'active',
 })
@@ -551,10 +642,25 @@ const clearFilters = () => {
 
 const fetchBlogs = async () => {
   try {
-    const response = await blogService.getBlogsA()
-    dataList.value = response.data
+    if (hasActiveFilters.value) {
+      currentPage.value = 1 // รีเซ็ตกลับไปหน้า 1 เมื่อมีการ filter
+    }
+
+    const response = await blogService.getBlogsA(
+      currentPage.value, // หน้าปัจจุบัน
+      itemsPerPage, // จำนวนรายการต่อหน้า (10)
+      queryParams.value.q, // คำค้นหา
+      queryParams.value.show, // สถานะที่ต้องการแสดง ('active')
+    )
+    dataList.value = response.data // เก็บข้อมูลที่ได้จาก API ไว้ใน dataList
   } catch (error) {
     console.error('Error fetching blogs:', error)
+    dataList.value = {
+      totalItems: 0,
+      rows: [], // กรณี error ไม่เจอข้อมูล
+      totalPages: 0,
+      currentPage: 0,
+    }
   }
 }
 const reloadData = async () => {
@@ -617,7 +723,11 @@ const handleSearch = async () => {
   }
 }
 
-// Computed property for sorted data
+// Update filtered and paginated data
+const totalPages = computed(() => dataList.value.totalPages) // เก็บค่า totalPages
+const paginatedBlogs = computed(() => dataList.value.rows) // เก็บค่า rows
+
+// Client-side sorting of current page data
 const sortedData = computed(() => {
   let result = [...dataList.value.rows]
   // copy dataList.value.rows ไปไว้ใน result เพื่อให้การเปลี่ยนค่าจากการ sort ไม่กระทบข้อมูลเดิม
@@ -798,4 +908,20 @@ const closeViewModal = () => {
   showViewModal.value = false
   selectedBlog.value = null
 }
+
+// Add page navigation handlers that will refetch data
+const goToPage = async (page: number) => {
+  currentPage.value = page // อัพเดทหน้าปัจจุบัน
+  await fetchBlogs() // ดึงข้อมูลใหม่ตามหน้าที่เลือก
+}
+
+// Watch for filter changes to refetch data
+watch(
+  // ติดตามการเปลี่ยนแปลงของ 2 ค่านี้
+  [sortOptions, queryParams.value.q],
+  () => {
+    fetchBlogs() // ถ้ามีการเปลี่ยนแปลง ให้ดึงข้อมูลใหม่
+  },
+  { deep: true }, // ติดตามการเปลี่ยนแปลง
+)
 </script>
