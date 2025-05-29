@@ -664,7 +664,16 @@ const fetchBlogs = async () => {
   }
 }
 const reloadData = async () => {
-  await fetchBlogs()
+  // รีเซ็ตค่าต่างๆ
+  currentPage.value = 1
+  queryParams.value = {
+    page: 1,
+    size: 10,
+    q: '', // ล้างค่าการค้นหา
+    show: 'active'
+  }
+  clearFilters() // ล้าง filters ทั้งหมด
+  await fetchBlogs() // โหลดข้อมูลใหม่
 }
 // เอาไว้ handle searching by id
 const handleSearch = async () => {
