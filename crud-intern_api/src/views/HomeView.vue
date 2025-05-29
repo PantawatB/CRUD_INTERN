@@ -669,6 +669,10 @@ const reloadData = async () => {
 // เอาไว้ handle searching by id
 const handleSearch = async () => {
   try {
+    // Reset ไป page 1 ทุกครั้งเพื่อเตรียมข้อมูลกันหน้าบัค
+    currentPage.value = 1
+    queryParams.value.page = 1
+
     if (!queryParams.value.q) {
       // ถ้าไม่มีค่าค้นหา ให้แสดงทั้งหมด (ดึง Get all มาแสดง)
       await fetchBlogs()
@@ -694,21 +698,18 @@ const handleSearch = async () => {
       }
     }
 
-    // ถ้าไม่ใช่ ID หรือหา ID ไม่เจอ ให้ค้นหาในข้อมูลทั้งหมด
-    await fetchBlogs() // get all มา
-    const searchText = queryParams.value.q.toLowerCase() // เอาคำที่ user พิมพ์มาเก็บไว้ใน
-    // เอาข้อมูลจาก api มาแสดง โดยเพิ่มสิ่งที่ user พิมพ์มาแสดง
-    const filteredRows = dataList.value.rows.filter(
-      (blog) =>
-        blog.title.toLowerCase().includes(searchText) ||
-        blog.content.toLowerCase().includes(searchText),
+    // ใช้ API call เพื่อค้นหาโดยตรง
+    const response = await blogService.getBlogsA(
+      currentPage.value,
+      itemsPerPage,
+      queryParams.value.q,
+      queryParams.value.show,
     )
 
-    dataList.value = {
-      totalItems: filteredRows.length,
-      rows: filteredRows,
-      totalPages: 1,
-      currentPage: 1,
+    // อัพเดทข้อมูลจาก API response
+    if (response.data) {
+      // ถ้ามีข้อมูลจาก api ก็ใส่ใน dataList
+      dataList.value = response.data
     }
   } catch (error) {
     console.error('Error searching blogs:', error)
@@ -909,10 +910,12 @@ const closeViewModal = () => {
   selectedBlog.value = null
 }
 
-// Add page navigation handlers that will refetch data
+// ตอนที่กด pagination
 const goToPage = async (page: number) => {
-  currentPage.value = page // อัพเดทหน้าปัจจุบัน
-  await fetchBlogs() // ดึงข้อมูลใหม่ตามหน้าที่เลือก
+  currentPage.value = page // เปลี่ยนค่าของ currentPage เพื่อให้แสดงหน้าที่ต้องการ
+  queryParams.value.page = page
+  // ดึงข้อมูลใหม่ตามหน้าที่เลือก พร้อมกับคำค้นหา (ถ้ามี)
+  await fetchBlogs() //โหลดใหม่
 }
 
 // Watch for filter changes to refetch data
