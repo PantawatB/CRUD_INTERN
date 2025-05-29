@@ -1,9 +1,8 @@
 <template>
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">DataBase</h1>
+      <button @click="reloadData" class="text-3xl font-bold">DataBase</button>
       <div class="flex items-center gap-4">
-        <h1 class="text-xl font-semibold">Get by id test:</h1>
         <!-- Search Box -->
         <div class="relative">
           <!-- q	string	ค้นหา title หรือ content -->
@@ -11,7 +10,7 @@
             type="text"
             v-model="queryParams.q"
             @keyup.enter="handleSearch"
-            placeholder="Search id..."
+            placeholder="Search by ID, title, or content..."
             class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
           />
           <svg
@@ -558,25 +557,52 @@ const fetchBlogs = async () => {
     console.error('Error fetching blogs:', error)
   }
 }
-
+const reloadData = async () => {
+  await fetchBlogs()
+}
 // เอาไว้ handle searching by id
 const handleSearch = async () => {
   try {
-    if (queryParams.value.q && !isNaN(Number(queryParams.value.q))) {
-      // ทีค่าและค่าต้องเป็นตัวเลข และ ไม่ใช่ is Not a Number คือต้องเป็นตัวเลข ตัวว่างยังถือว่าเป็น 0
-      const response = await blogService.getbyid(Number(queryParams.value.q))
-      if (response.data) {
-        // ถ้ามี data ให้แสดงข้อมูล ไอเทมอันเดียว หน้าเดียว และ โชว์ข้อมูลนั้น
-        dataList.value = {
-          totalItems: 1,
-          rows: [response.data],
-          totalPages: 1,
-          currentPage: 1,
-        }
-      }
-    } else {
-      // กดเฉยๆแบบไม่มีข้อมูลก็ get all มาก่อน
+    if (!queryParams.value.q) {
+      // ถ้าไม่มีค่าค้นหา ให้แสดงทั้งหมด (ดึง Get all มาแสดง)
       await fetchBlogs()
+      return
+    }
+
+    if (!isNaN(Number(queryParams.value.q))) {
+      // ถ้าเป็นตัวเลข ให้ค้นหาด้วย ID (ไม่ใช่ is not a number คือต้องเป็นตัวเลขเท่านั้น)
+      try {
+        const response = await blogService.getbyid(Number(queryParams.value.q))
+        if (response.data) {
+          dataList.value = {
+            //แสดงข้อมูลเดียว
+            totalItems: 1,
+            rows: [response.data], //แสดงข้อมูลที่หาเจอ
+            totalPages: 1,
+            currentPage: 1,
+          }
+          return
+        }
+      } catch (error) {
+        console.error('Blog not found with ID:', error)
+      }
+    }
+
+    // ถ้าไม่ใช่ ID หรือหา ID ไม่เจอ ให้ค้นหาในข้อมูลทั้งหมด
+    await fetchBlogs() // get all มา
+    const searchText = queryParams.value.q.toLowerCase() // เอาคำที่ user พิมพ์มาเก็บไว้ใน
+    // เอาข้อมูลจาก api มาแสดง โดยเพิ่มสิ่งที่ user พิมพ์มาแสดง
+    const filteredRows = dataList.value.rows.filter(
+      (blog) =>
+        blog.title.toLowerCase().includes(searchText) ||
+        blog.content.toLowerCase().includes(searchText),
+    )
+
+    dataList.value = {
+      totalItems: filteredRows.length,
+      rows: filteredRows,
+      totalPages: 1,
+      currentPage: 1,
     }
   } catch (error) {
     console.error('Error searching blogs:', error)
