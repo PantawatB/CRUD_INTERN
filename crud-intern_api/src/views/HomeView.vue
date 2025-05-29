@@ -670,7 +670,7 @@ const reloadData = async () => {
     page: 1,
     size: 10,
     q: '', // ล้างค่าการค้นหา
-    show: 'active'
+    show: 'active',
   }
   clearFilters() // ล้าง filters ทั้งหมด
   await fetchBlogs() // โหลดข้อมูลใหม่
@@ -734,10 +734,9 @@ const handleSearch = async () => {
 }
 
 // Update filtered and paginated data
-const totalPages = computed(() => dataList.value.totalPages) // เก็บค่า totalPages
-const paginatedBlogs = computed(() => dataList.value.rows) // เก็บค่า rows
+const totalPages = computed(() => dataList.value.totalPages)
 
-// Client-side sorting of current page data
+//sorting and filtering
 const sortedData = computed(() => {
   let result = [...dataList.value.rows]
   // copy dataList.value.rows ไปไว้ใน result เพื่อให้การเปลี่ยนค่าจากการ sort ไม่กระทบข้อมูลเดิม
@@ -787,6 +786,9 @@ const sortedData = computed(() => {
 
   return result
 })
+
+// Use sortedData for display
+const paginatedBlogs = computed(() => sortedData.value)
 
 onMounted(() => {
   fetchBlogs()
@@ -927,12 +929,22 @@ const goToPage = async (page: number) => {
   await fetchBlogs() //โหลดใหม่
 }
 
-// Watch for filter changes to refetch data
+// Watch for query params changes only (search)
 watch(
-  // ติดตามการเปลี่ยนแปลงของ 2 ค่านี้
-  [sortOptions, queryParams.value.q],
+  () => queryParams.value.q,
   () => {
-    fetchBlogs() // ถ้ามีการเปลี่ยนแปลง ให้ดึงข้อมูลใหม่
+    if (queryParams.value.q !== '') {
+      handleSearch()
+    }
+  },
+)
+
+// Watch for sort options changes
+watch(
+  sortOptions,
+  () => {
+    // ไม่ต้อง fetch ข้อมูลใหม่เมื่อ sort เพราะเราทำ client-side sorting
+    showFilterMenu.value = false // ปิด dropdown หลังจาก sort
   },
   { deep: true }, // ติดตามการเปลี่ยนแปลง
 )
